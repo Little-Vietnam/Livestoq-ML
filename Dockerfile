@@ -30,5 +30,5 @@ RUN python -c "from ultralytics import YOLO; YOLO('yolov8x-pose.pt'); YOLO('yolo
 # Expose port (Railway injects $PORT at runtime)
 EXPOSE 8000
 
-# Run with the PORT env var Railway provides
-CMD uvicorn api:app --host 0.0.0.0 --port ${PORT:-8000}
+# Use Python to start uvicorn so $PORT env var is resolved at runtime
+CMD ["python", "-c", "import os, uvicorn; uvicorn.run('api:app', host='0.0.0.0', port=int(os.environ.get('PORT', 8000)))"]
