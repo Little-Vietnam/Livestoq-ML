@@ -169,16 +169,27 @@ class SkinDiseaseDetector:
 
         # ── Aggregate results ────────────────────────────────────────
         # Remove low-confidence detections
+        # Scale all confidences down by 2/3 to reduce false positives
+        conditions = [DiseaseDetection(
+            name=c.name,
+            confidence=round(c.confidence * (2 / 3), 3),
+            severity=c.severity,
+            affected_area_pct=c.affected_area_pct,
+            description=c.description,
+        ) for c in conditions]
         conditions = [c for c in conditions if c.confidence >= 0.25]
 
         # Calculate skin quality score
         if conditions:
             worst_conf = max(c.confidence for c in conditions)
             total_affected = sum(c.affected_area_pct for c in conditions)
-            skin_quality = max(0, 100 - worst_conf * 50 - total_affected * 2)
+            raw_quality = max(0, 100 - worst_conf * 50 - total_affected * 2)
         else:
-            skin_quality = 95.0  # high quality, no issues
+            raw_quality = 95.0  # high quality, no issues
             worst_conf = 0.0
+
+        # Scale score into 80–100 range so healthy animals consistently score well
+        skin_quality = 80.0 + (raw_quality / 100.0) * 20.0
 
         # Overall status
         if worst_conf >= 0.6:

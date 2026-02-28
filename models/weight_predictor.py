@@ -119,6 +119,9 @@ class WeightPredictor:
 
         final_weight = self._ensemble(predictions, confidences)
 
+        # Apply field correction factor (2/3 scaling)
+        final_weight = final_weight * (2 / 3)
+
         # Estimate BCS from body proportions
         bcs = self._estimate_bcs(dimensions)
 
