@@ -17,6 +17,7 @@ import sys
 import cv2
 import numpy as np
 import tempfile
+import threading
 from typing import Optional
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
@@ -52,6 +53,8 @@ app.add_middleware(
 pipeline: Optional[LivestockPipeline] = None
 age_predictor: Optional[AgePredictor] = None
 skin_detector: Optional[SkinDiseaseDetector] = None
+_models_loading: bool = False
+_models_error: Optional[str] = None
 
 
 def _save_temp(contents: bytes, content_type: str = "") -> str:
@@ -79,22 +82,39 @@ def _jsonable(obj):
     return obj
 
 
+def _load_models():
+    """Load all ML models in a background thread so the server starts immediately."""
+    global pipeline, age_predictor, skin_detector, _models_loading, _models_error
+    _models_loading = True
+    try:
+        print("[API] Loading models in background...")
+        config = PipelineConfig()
+        config.device = "cpu"
+        config.debug = False
+        pipeline = LivestockPipeline(config)
+        age_predictor = AgePredictor()
+        skin_detector = SkinDiseaseDetector()
+        print("[API] All models initialized and ready.")
+    except Exception as e:
+        _models_error = str(e)
+        print(f"[API] Model loading failed: {e}")
+    finally:
+        _models_loading = False
+
+
 @app.on_event("startup")
 def startup():
-    global pipeline, age_predictor, skin_detector
-    config = PipelineConfig()
-    config.device = "cpu"
-    config.debug = False
-    pipeline = LivestockPipeline(config)
-    age_predictor = AgePredictor()
-    skin_detector = SkinDiseaseDetector()
-    print("[API] All models initialized and ready.")
+    thread = threading.Thread(target=_load_models, daemon=True)
+    thread.start()
 
 
 @app.get("/health")
 def health_check():
     return {
         "status": "ok",
+        "models_loading": _models_loading,
+        "models_ready": pipeline is not None and age_predictor is not None and skin_detector is not None,
+        "models_error": _models_error,
         "pipeline_ready": pipeline is not None,
         "age_predictor_ready": age_predictor is not None,
         "skin_detector_ready": skin_detector is not None,
