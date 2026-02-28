@@ -4,6 +4,9 @@
 *.onnx
 *.tflite
 
+# WhatsApp media
+WhatsApp*
+
 # Python
 __pycache__/
 *.py[cod]
@@ -29,3 +32,5 @@ Thumbs.db
 
 # Output
 output/
+.vercel
+.env*.local
